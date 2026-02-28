@@ -9,6 +9,7 @@ const DEFAULT_SETTINGS: Settings = {
   bailianApiKey: '',
   bailianAppId: '',
   defaultSourceRegion: 'SH',
+  arkApiKey: '',
 };
 
 const DEFAULT_MISTAKES: MistakesStore = {
