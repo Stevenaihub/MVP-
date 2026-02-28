@@ -7,6 +7,7 @@ export default function OptionsApp() {
     bailianApiKey: '',
     bailianAppId: '',
     defaultSourceRegion: 'SH',
+    arkApiKey: '',
   })
   const [showKey, setShowKey] = useState(false)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
@@ -81,6 +82,25 @@ export default function OptionsApp() {
               🔌 测试连通性（占位）
             </button>
           </div>
+        </fieldset>
+
+        <fieldset style={fieldsetStyle}>
+          <legend style={legendStyle}>豆包 Ark API</legend>
+
+          <div style={fieldRow}>
+            <label style={labelStyle} htmlFor="arkApiKey">API Key</label>
+            <input
+              id="arkApiKey"
+              type="password"
+              value={settings.arkApiKey}
+              onChange={e => setSettings(s => ({ ...s, arkApiKey: e.target.value }))}
+              placeholder="ARK API Key"
+              style={{ ...inputStyle, flex: 1 }}
+            />
+          </div>
+          <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#888' }}>
+            用于截图识别（doubao-seed-2-0-mini-260215）
+          </p>
         </fieldset>
 
         <fieldset style={fieldsetStyle}>

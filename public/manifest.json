@@ -5,7 +5,8 @@
   "description": "截图识别题目，智能整理错题，帮助备考",
   "permissions": ["storage"],
   "host_permissions": [
-    "https://dashscope.aliyuncs.com/*"
+    "https://dashscope.aliyuncs.com/*",
+    "https://ark.cn-beijing.volces.com/*"
   ],
   "action": {
     "default_popup": "popup.html",
