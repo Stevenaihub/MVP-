@@ -5,8 +5,13 @@
   "description": "截图识别题目，智能整理错题，帮助备考",
   "permissions": ["storage"],
   "host_permissions": [
+<<<<<<< HEAD
     "https://dashscope.aliyuncs.com/*",
     "https://ark.cn-beijing.volces.com/*"
+=======
+     "https://dashscope.aliyuncs.com/*",
+     "https://ark.cn-beijing.volces.com/*"
+>>>>>>> 97e98c8 (chore: sync host_permissions in manifest.json)
   ],
   "action": {
     "default_popup": "popup.html",
