@@ -13,6 +13,9 @@ function generateId(): string {
 
 async function runRecognition(id: string, imageDataUrl: string, apiKey: string): Promise<void> {
   try {
+    if (!apiKey || typeof apiKey !== 'string' || apiKey.trim().length < 8) {
+      throw new Error('豆包 Ark API Key 未配置或格式错误，请在设置页填写密钥（请从豆包 Ark 管理后台复制获取）');
+    }
     const { question, answer } = await recognizeQuestion(imageDataUrl, apiKey)
     const store = await loadMistakes()
     if (store.itemsById[id]) {
@@ -22,17 +25,19 @@ async function runRecognition(id: string, imageDataUrl: string, apiKey: string):
         answer,
         status: 'success',
         updatedAt: Date.now(),
+        errorMessage: '',
       }
       await saveMistakes(store)
     }
   } catch (err) {
-    console.error('Recognition failed:', err)
+    // 错误写入 errorMessage 字段
     const store = await loadMistakes()
     if (store.itemsById[id]) {
       store.itemsById[id] = {
         ...store.itemsById[id],
         status: 'failed',
         updatedAt: Date.now(),
+        errorMessage: String(err),
       }
       await saveMistakes(store)
     }
@@ -43,14 +48,15 @@ export default function App() {
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [savedMsg, setSavedMsg] = useState('')
+  const [lastError, setLastError] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // Focus container so it receives paste events
   useEffect(() => {
     containerRef.current?.focus()
   }, [])
 
   const handlePaste = useCallback((e: React.ClipboardEvent<HTMLDivElement>) => {
+    setLastError('')
     const items = Array.from(e.clipboardData.items)
     const imageItem = items.find((item) => item.type.startsWith('image/'))
     if (!imageItem) return
@@ -69,11 +75,16 @@ export default function App() {
     if (!imageDataUrl) return
     setSaving(true)
     setSavedMsg('')
+    setLastError('')
     try {
       const settings = await loadSettings()
       const store = await loadMistakes()
       const now = Date.now()
       const id = generateId()
+      // 检查 Ark Key 是否有效
+      if (!settings.arkApiKey || typeof settings.arkApiKey !== 'string' || settings.arkApiKey.trim().length < 8) {
+        throw new Error('豆包 Ark API Key 未配置或格式错误，请在设置页填写密钥（请从豆包 Ark 管理后台复制获取）')
+      }
       const item: MistakeItem = {
         id,
         createdAt: now,
@@ -85,6 +96,7 @@ export default function App() {
         answer: '',
         note: '',
         status: 'processing',
+        errorMessage: '', // 新增 errorMessage 字段
       }
       store.itemsById[id] = item
       store.itemOrder.unshift(id)
@@ -92,11 +104,10 @@ export default function App() {
       setSavedMsg('✅ 已入库，识别中…')
       setImageDataUrl(null)
 
-      // Async recognition — fire and forget
       runRecognition(id, imageDataUrl, settings.arkApiKey)
     } catch (err) {
-      console.error('Save failed:', err)
-      setSavedMsg('❌ 保存失败，请重试')
+      setSavedMsg(`❌ 保存失败: ${String(err)}`)
+      setLastError(String(err) || '')
     } finally {
       setSaving(false)
     }
@@ -107,7 +118,7 @@ export default function App() {
       ref={containerRef}
       tabIndex={0}
       onPaste={handlePaste}
-      style={{ padding: '16px', fontFamily: 'sans-serif', outline: 'none' }}
+      style={{ padding: '16px', fontFamily: 'sans-serif', outline: 'none', minWidth: 320, minHeight: 400 }}
     >
       <h2 style={{ margin: '0 0 8px' }}>📖 错题本</h2>
       <p style={{ color: '#666', fontSize: '13px', margin: '0 0 12px' }}>
@@ -152,7 +163,15 @@ export default function App() {
       )}
 
       {savedMsg && (
-        <p style={{ margin: '0 0 8px', fontSize: '13px', color: '#555' }}>{savedMsg}</p>
+        <p style={{ margin: '0 0 8px', fontSize: '13px', color: savedMsg.startsWith('✅') ? '#228b22' : '#d00', whiteSpace: 'pre-wrap' }}>
+          {savedMsg}
+        </p>
+      )}
+
+      {lastError && (
+        <p style={{ margin: '0 0 10px', fontSize: '12px', color: '#c00', whiteSpace: 'pre-wrap' }}>
+          <strong>错误原因：</strong>{lastError}
+        </p>
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
