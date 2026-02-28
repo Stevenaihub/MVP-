@@ -116,6 +116,28 @@ export default function LibraryApp() {
                       {item.question || '（无题目内容）'}
                     </p>
                     {item.answer && (
+{item.status === 'failed' && item.errorMessage && (
+  <p style={{
+    margin: '0 0 6px',
+    fontSize: '12px',
+    color: '#d00',
+    wordBreak: 'break-word',
+    whiteSpace: 'pre-wrap'
+  }}>
+    <strong>错误原因：</strong>{item.errorMessage}
+  </p>
+)}
+{item.status === 'failed' && item.errorMessage && (
+  <p style={{
+    margin: '0 0 6px',
+    fontSize: '12px',
+    color: '#d00',
+    wordBreak: 'break-word',
+    whiteSpace: 'pre-wrap'
+  }}>
+    <strong>错误原因：</strong>{item.errorMessage}
+  </p>
+)}
                       <p
                         style={{
                           margin: 0,
