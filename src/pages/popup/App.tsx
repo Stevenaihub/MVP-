@@ -11,9 +11,9 @@ function generateId(): string {
   return crypto.randomUUID()
 }
 
-async function runRecognition(id: string, imageDataUrl: string, apiKey: string): Promise<void> {
+async function runRecognition(id: string, imageDataUrl: string, apiKey: string, modelId?: string): Promise<void> {
   try {
-    const { question, answer } = await recognizeQuestion(imageDataUrl, apiKey)
+    const { question, answer } = await recognizeQuestion(imageDataUrl, apiKey, modelId)
     const store = await loadMistakes()
     if (store.itemsById[id]) {
       store.itemsById[id] = {
@@ -22,6 +22,8 @@ async function runRecognition(id: string, imageDataUrl: string, apiKey: string):
         answer,
         status: 'success',
         updatedAt: Date.now(),
+        errorMessage: '',
+        debugResponse: '',
       }
       await saveMistakes(store)
     }
@@ -29,9 +31,13 @@ async function runRecognition(id: string, imageDataUrl: string, apiKey: string):
     console.error('Recognition failed:', err)
     const store = await loadMistakes()
     if (store.itemsById[id]) {
+      const debug = err && typeof err === 'object' ? (err as any).debugResponse : undefined
+      const msg = err instanceof Error ? err.message : String(err)
       store.itemsById[id] = {
         ...store.itemsById[id],
         status: 'failed',
+        errorMessage: msg,
+        debugResponse: debug ?? '',
         updatedAt: Date.now(),
       }
       await saveMistakes(store)
@@ -93,7 +99,7 @@ export default function App() {
       setImageDataUrl(null)
 
       // Async recognition — fire and forget
-      runRecognition(id, imageDataUrl, settings.arkApiKey)
+      runRecognition(id, imageDataUrl, settings.arkApiKey, settings.modelId)
     } catch (err) {
       console.error('Save failed:', err)
       setSavedMsg('❌ 保存失败，请重试')

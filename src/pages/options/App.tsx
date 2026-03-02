@@ -4,13 +4,13 @@ import type { Settings, SourceRegion } from '../../shared/types'
 
 export default function OptionsApp() {
   const [settings, setSettings] = useState<Settings>({
-    bailianApiKey: '',
-    bailianAppId: '',
     defaultSourceRegion: 'SH',
     arkApiKey: '',
   })
   const [showKey, setShowKey] = useState(false)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const [lastTestError, setLastTestError] = useState<string>('')
+  const [lastSaveError, setLastSaveError] = useState<string>('')
 
   useEffect(() => {
     loadSettings().then(setSettings)
@@ -20,17 +20,51 @@ export default function OptionsApp() {
     e.preventDefault()
     setSaveStatus('saving')
     try {
-      await saveSettings(settings)
+      // Ensure API key is trimmed before saving
+      const toSave = { ...settings, arkApiKey: settings.arkApiKey?.trim() ?? '' }
+      setSettings(toSave)
+      await saveSettings(toSave)
+      // clear last save error on success
+      setLastSaveError('')
+      try {
+        chrome.storage.local.remove('arkSaveLastError')
+      } catch {}
       setSaveStatus('saved')
       setTimeout(() => setSaveStatus('idle'), 2000)
     } catch (error) {
       console.error('Failed to save settings:', error)
+      const msg = error instanceof Error ? error.message : String(error)
+      setLastSaveError(msg)
+      try {
+        chrome.storage.local.set({ arkSaveLastError: msg })
+      } catch {}
       setSaveStatus('error')
     }
   }
 
-  function handleTestConnection() {
-    alert('连通性测试功能即将上线')
+  async function handleTestConnection() {
+    setSaveStatus('saving')
+    try {
+      const { testArkKey } = await import('../../shared/api')
+      const res = await testArkKey(settings.arkApiKey)
+      alert('测试成功: ' + String(res).slice(0, 200))
+      setSaveStatus('saved')
+      setTimeout(() => setSaveStatus('idle'), 1500)
+      // clear any previous test error
+      setLastTestError('')
+      try {
+        chrome.storage.local.remove('arkTestLastError')
+      } catch {}
+    } catch (err) {
+      console.error('测试连通性失败:', err)
+      const debug = err && typeof err === 'object' ? (err as any).debugResponse ?? (err as any).message ?? String(err) : String(err)
+      setLastTestError(String(debug))
+      try {
+        chrome.storage.local.set({ arkTestLastError: String(debug) })
+      } catch {}
+      alert('测试失败: ' + (err instanceof Error ? err.message : String(err)))
+      setSaveStatus('error')
+    }
   }
 
   return (
@@ -38,17 +72,17 @@ export default function OptionsApp() {
       <h1 style={{ fontSize: '22px', margin: '0 0 24px' }}>⚙️ 设置</h1>
       <form onSubmit={handleSave}>
         <fieldset style={fieldsetStyle}>
-          <legend style={legendStyle}>阿里云百炼 API</legend>
+          <legend style={legendStyle}>豆包 Ark API</legend>
 
           <div style={fieldRow}>
-            <label style={labelStyle} htmlFor="apiKey">API Key</label>
+            <label style={labelStyle} htmlFor="arkApiKey">API Key</label>
             <div style={{ display: 'flex', gap: '8px', flex: 1 }}>
               <input
-                id="apiKey"
+                id="arkApiKey"
                 type={showKey ? 'text' : 'password'}
-                value={settings.bailianApiKey}
-                onChange={e => setSettings(s => ({ ...s, bailianApiKey: e.target.value }))}
-                placeholder="sk-xxxxxxxxxxxx"
+                value={settings.arkApiKey}
+                onChange={e => setSettings(s => ({ ...s, arkApiKey: e.target.value }))}
+                placeholder="ARK API Key"
                 style={inputStyle}
               />
               <button
@@ -60,46 +94,28 @@ export default function OptionsApp() {
               </button>
             </div>
           </div>
-
-          <div style={fieldRow}>
-            <label style={labelStyle} htmlFor="appId">App ID</label>
-            <input
-              id="appId"
-              type="text"
-              value={settings.bailianAppId}
-              onChange={e => setSettings(s => ({ ...s, bailianAppId: e.target.value }))}
-              placeholder="your-app-id"
-              style={{ ...inputStyle, flex: 1 }}
-            />
-          </div>
-
           <div style={{ marginTop: '12px' }}>
             <button
               type="button"
               onClick={handleTestConnection}
               style={outlineBtnStyle}
             >
-              🔌 测试连通性（占位）
+              🔌 测试连通性 (Ark)
             </button>
-          </div>
-        </fieldset>
-
-        <fieldset style={fieldsetStyle}>
-          <legend style={legendStyle}>豆包 Ark API</legend>
-
-          <div style={fieldRow}>
-            <label style={labelStyle} htmlFor="arkApiKey">API Key</label>
-            <input
-              id="arkApiKey"
-              type="password"
-              value={settings.arkApiKey}
-              onChange={e => setSettings(s => ({ ...s, arkApiKey: e.target.value }))}
-              placeholder="ARK API Key"
-              style={{ ...inputStyle, flex: 1 }}
-            />
+            <p style={{ margin: '8px 0 0', fontSize: '12px', color: '#666' }}>
+              请先在火山引擎 ARK 控制台确认 API 密钥格式正确
+            </p>
+            {lastTestError && (
+              <div style={{ marginTop: '8px', fontSize: '12px', color: '#a00' }}>
+                <div>上次测试错误（详细）：</div>
+                <pre style={{ whiteSpace: 'pre-wrap', background: '#f8f8f8', padding: '8px', borderRadius: '4px' }}>
+{lastTestError}
+</pre>
+              </div>
+            )}
           </div>
           <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#888' }}>
-            用于截图识别（doubao-seed-2-0-mini-260215）
+            用于截图识别（doubao-seed-1-6-vision-250815 + base64）
           </p>
         </fieldset>
 
@@ -127,6 +143,14 @@ export default function OptionsApp() {
           </button>
           {saveStatus === 'saved' && <span style={{ color: '#34a853' }}>✓ 已保存</span>}
           {saveStatus === 'error' && <span style={{ color: '#ea4335' }}>保存失败，请重试</span>}
+          {lastSaveError && (
+            <div style={{ marginTop: '8px', fontSize: '12px', color: '#a00' }}>
+              <div>上次保存错误（详细）：</div>
+              <pre style={{ whiteSpace: 'pre-wrap', background: '#f8f8f8', padding: '8px', borderRadius: '4px' }}>
+{lastSaveError}
+</pre>
+            </div>
+          )}
         </div>
       </form>
     </div>

@@ -3,10 +3,9 @@ export type SourceRegion = 'SH' | 'SZ';
 export type MistakeStatus = 'processing' | 'success' | 'failed';
 
 export interface Settings {
-  bailianApiKey: string;
-  bailianAppId: string;
   defaultSourceRegion: SourceRegion;
   arkApiKey: string;
+  modelId?: string;
 }
 
 export interface MistakeItem {
@@ -20,6 +19,8 @@ export interface MistakeItem {
   answer: string;
   note: string;
   status: MistakeStatus;
+  errorMessage?: string;
+  debugResponse?: string;
 }
 
 export interface MistakesStore {
